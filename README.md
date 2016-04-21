@@ -4,7 +4,7 @@
 Cake is a simple, Rustic build tool, which is configured through the advanced macro system of Rust, making it very flexible and expressive.
 
 Features & advantages
-=====================
+---------------------
 
 1. A sane and obvious syntax.
 2. Fast parallel builds through work-stealing.
@@ -12,7 +12,7 @@ Features & advantages
 4. Efficient dependency resolution.
 
 An example
-==========
+----------
 
 ```rust
 #[macro_use]
@@ -27,7 +27,7 @@ build! {
 ```
 
 The syntax
-==========
+----------
 
 The build is declared through the `build!` macro, which, when invoked, expands to the main function. The `build!` macro takes a block, containing a match like syntax:
 
