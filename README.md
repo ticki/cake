@@ -37,4 +37,6 @@ unit(dependencies...) => instructions
 
 The first denotes the name of the build unit. `dependencies`, delimited by `()` and splited by commas, denotes what build units this unit depends on, i.e., requires to build.
 
+A unit can be failed by returning `Err(())`, e.g. using `try!()` on a result.
+
 For the extra helper macros, see the rendered docs.
