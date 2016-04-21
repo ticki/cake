@@ -43,6 +43,7 @@ macro_rules! par {
 #[macro_export]
 macro_rules! build {
     { $($name:ident($($dep:ident),*) => $cont:expr,)* } => {
+        use std::env;
         use std::sync::atomic::{self, AtomicBool};
 
         #[derive(Default)]
@@ -52,28 +53,44 @@ macro_rules! build {
             ),*
         }
 
-        $(
-            fn $name(cake_build: &CakeBuild) -> Result<(), ()> {
-                par!(
+        impl CakeBuild {
+            $(
+                fn $name(&self) -> Result<(), ()> {
+                    par!(
+                        $(
+                            if !self.$dep.load(atomic::Ordering::SeqCst) {
+                                self.$dep().expect(concat!("recipe, ", stringify!($dep), ", failed to build."));
+                            }
+                        ),*
+                    );
+
+                    self.$name.store(true, atomic::Ordering::SeqCst);
+
+                    $cont;
+
+                    Ok(())
+                }
+            )*
+
+            fn run_recipe(&self, cmd: &str) -> Result<(), ()> {
+                match cmd {
                     $(
-                        if !cake_build.$dep.load(atomic::Ordering::SeqCst) {
-                            $dep(&cake_build).expect(concat!("recipe, ", stringify!($dep), ", failed to build."));
-                        }
-                    ),*
-                );
+                        stringify!($name) => self.$name(),
+                    )*
+                    _ => Err(()),
+                }
 
-                cake_build.$name.store(true, atomic::Ordering::SeqCst);
-
-                $cont;
-
-                Ok(())
             }
-        )*
+        }
 
         fn main() {
-            let cake_build = CakeBuild::default();
+            let build = CakeBuild::default();
 
-            start(&cake_build).expect("start recipe failed to build.");
+            for i in env::args().skip(1) {
+                if build.run_recipe(&i).is_err() {
+                    panic!("recipe, {}, failed/not found.", i)
+                }
+            }
         }
     };
 }

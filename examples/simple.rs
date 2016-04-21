@@ -5,5 +5,6 @@ build! {
     start(sodium, libstd) => cmd!(in "src"; "ls"),
     sodium(libstd, libextra) => println!("yay"),
     libstd() => println!("libstd"),
-    libextra() => cmd!("ls"),
+    libextra(run) => cmd!("ls"),
+    run() => println!("check"),
 }
