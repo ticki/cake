@@ -1,0 +1,7 @@
+[package]
+name = "cake"
+version = "0.1.0"
+authors = ["ticki <Ticki@users.noreply.github.com>"]
+
+[dependencies]
+rayon = "0.3.1"
