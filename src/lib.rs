@@ -43,7 +43,7 @@ macro_rules! build {
                 par!(
                     $(
                         if !cake_build.$dep.load(atomic::Ordering::SeqCst) {
-                            $dep(&cake_build).expect(concat!("unit, ", stringify!($dep), ", failed to build."));
+                            $dep(&cake_build).expect(concat!("recipe, ", stringify!($dep), ", failed to build."));
                         }
                     ),*
                 );
@@ -59,7 +59,7 @@ macro_rules! build {
         fn main() {
             let cake_build = CakeBuild::default();
 
-            start(&cake_build).expect("start united failed to build.");
+            start(&cake_build).expect("start recipe failed to build.");
         }
     };
 }

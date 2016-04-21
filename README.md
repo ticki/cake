@@ -32,11 +32,11 @@ The syntax
 The build is declared through the `build!` macro, which, when invoked, expands to the main function. The `build!` macro takes a block, containing a match like syntax:
 
 ```rust
-unit(dependencies...) => instructions
+recipe(dependencies...) => instructions
 ```
 
-The first denotes the name of the build unit. `dependencies`, delimited by `()` and splited by commas, denotes what build units this unit depends on, i.e., requires to build.
+The first denotes the name of the build recipe. `dependencies`, delimited by `()` and splited by commas, denotes what build recipe this recipe depends on, i.e., requires to build.
 
-A unit can be failed by returning `Err(())`, e.g. using `try!()` on a result.
+A recipe can be failed by returning `Err(())`, e.g. using `try!()` on a result.
 
 For the extra helper macros, see the rendered docs.
