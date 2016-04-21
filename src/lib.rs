@@ -2,6 +2,20 @@ pub extern crate rayon;
 
 #[macro_export]
 macro_rules! cmd {
+    (in $cd:expr; $cmd:expr $(, $arg:expr)*) => {{
+        use std::process;
+
+        if !process::Command::new($cmd)
+            $(
+                .arg($arg)
+            )*
+            .current_dir($cd)
+            .stdout(process::Stdio::inherit())
+            .stderr(process::Stdio::inherit())
+            .status().unwrap().success() {
+            return Err(());
+        }
+    }};
     ($cmd:expr $(, $arg:expr)*) => {{
         use std::process;
 
