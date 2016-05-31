@@ -32,7 +32,7 @@ macro_rules! cmd {
             .current_dir($cd)
             .stdout(process::Stdio::inherit())
             .stderr(process::Stdio::inherit())
-            .status().unwrap().success() {
+            .status().is_err() {
             return Err(());
         }
     }};
@@ -45,7 +45,7 @@ macro_rules! cmd {
             )*
             .stdout(process::Stdio::inherit())
             .stderr(process::Stdio::inherit())
-            .status().unwrap().success() {
+            .status().is_err() {
             return Err(());
         }
     }};
@@ -56,11 +56,19 @@ macro_rules! cmd {
 /// This uses work-stealing as back end.
 #[macro_export]
 macro_rules! par {
-    () => {};
-    ($a:expr) => { $a };
-    ($a:expr, $($rest:expr),*) => {
-        $crate::rayon::join(|| $a, || par!($($rest),*))
+    () => {
+        Ok(())
     };
+    ($a:expr) => {{
+        try!($a);
+        Ok(())
+    }};
+    ($a:expr, $($rest:expr),*) => {{
+        let (a, b) = $crate::rayon::join(|| $a, || par!($($rest),*));
+        try!(a);
+        try!(b);
+        Ok(())
+    }};
 }
 
 /// Define a build.
@@ -89,41 +97,58 @@ macro_rules! par {
 #[macro_export]
 macro_rules! build {
     { $($name:ident($($dep:ident),*) => $cont:expr,)* } => {
-        use std::env;
-        use std::sync::atomic::{self, AtomicBool};
+        use std::io::Write;
+        use std::sync::Mutex;
+        use std::{env, io, process};
+
+        enum Error {
+            Failed(&'static str),
+            NotFound,
+        }
 
         #[derive(Default)]
         struct CakeBuild {
             $(
-                $name: AtomicBool
+                $name: Mutex<bool>
             ),*
         }
 
         impl CakeBuild {
             $(
-                fn $name(&self) -> Result<(), ()> {
+                fn $name(&self) -> Result<(), Error> {
+                    fn inner() -> Result<(), ()> {
+                        $cont;
+                        Ok(())
+                    }
+
                     par!(
                         $(
-                            if !self.$dep.load(atomic::Ordering::SeqCst) {
-                                self.$dep().expect(concat!("recipe, ", stringify!($dep), ", failed to build."));
+                            {
+                                let mut lock = self.$dep.lock().unwrap();
+                                if !*lock {
+                                    try!(self.$dep());
+                                }
+
+                                let res = inner().map_err(|_| Error::Failed(stringify!($name)));
+
+                                *lock = true;
+
+                                res
                             }
                         ),*
-                    );
-
-                    self.$name.store(true, atomic::Ordering::SeqCst);
-
-                    $cont;
-
-                    Ok(())
+                    )
                 }
             )*
 
-            fn run_recipe(&self, cmd: &str) -> Result<(), ()> {
+            fn run_recipe(&self, cmd: &str) -> Result<(), Error> {
+                let mut stdout = io::stdout();
+                writeln!(stdout, "== Running recipe {} ==", cmd).unwrap();
+
                 match cmd {
                     $(
                         stringify!($name) => self.$name(),
                     )*
-                    _ => Err(()),
+                    _ => Err(Error::NotFound),
                 }
 
             }
@@ -131,11 +156,26 @@ macro_rules! build {
 
         fn main() {
             let build = CakeBuild::default();
+            let stderr = io::stderr();
 
+            let mut run = false;
             for i in env::args().skip(1) {
-                if build.run_recipe(&i).is_err() {
-                    panic!("recipe, {}, failed/not found.", i)
+                run = true;
+
+                if let Err(x) = build.run_recipe(&i) {
+                    let mut stderr = stderr.lock();
+                    match x {
+                        Error::NotFound => writeln!(stderr, "recipe, {}, not found.", i),
+                        Error::Failed(name) => writeln!(stderr, "recipe, {}, failed.", name),
+                    }.unwrap();
+                    stderr.flush().unwrap();
+                    process::exit(1);
                 }
+            }
+
+            let mut stderr = stderr.lock();
+            if !run {
+                writeln!(stderr, "No argument given. Aborting.");
             }
         }
     };
