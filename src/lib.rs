@@ -1,11 +1,16 @@
 pub extern crate rayon;
 
+use std::slice;
+
 /// Execute a command.
 ///
 /// Each argument after the first, denoting the executable, represents a respective argument passed
 /// to the executable.  Optionally, you can specify the working directory by prepending `; in
 /// "blah" ` to the argument list. Any arbitrary number of environment variables can be declared
 /// through `where VAR = VAL`, delimited by `;`.
+///
+/// An argument can be of any type implementing `AsSlice<T>` where `T: AsRef<OsStr>`, that is, it
+/// can take both strings and arrays of strings.
 ///
 /// Examples
 /// ========
@@ -34,7 +39,10 @@ macro_rules! cmd {
 
         if process::Command::new($cmd)
             $(
-                .arg($arg)
+                .args({
+                    use $crate::ToSlice;
+                    ($arg).to_slice()
+                })
             )*
             $(
                 .env(stringify!($var), $val)
@@ -51,7 +59,10 @@ macro_rules! cmd {
 
         if process::Command::new($cmd)
             $(
-                .arg($arg)
+                .args({
+                    use $crate::ToSlice;
+                    ($arg).to_slice()
+                })
             )*
             $(
                 .env(stringify!($var), $val)
@@ -62,6 +73,24 @@ macro_rules! cmd {
             return Err(());
         }
     }};
+}
+
+/// Helper trait for converting types into slices.
+pub trait ToSlice<T> {
+    /// Convert this type into a slice.
+    fn to_slice(&self) -> &[T];
+}
+
+impl<T> ToSlice<T> for T {
+    fn to_slice(&self) -> &[T] {
+        unsafe { slice::from_raw_parts(self as *const T, 1) }
+    }
+}
+
+impl<T> ToSlice<T> for [T] {
+    fn to_slice(&self) -> &[T] {
+        self
+    }
 }
 
 /// Evaluate N expressions in parallel.
