@@ -3,8 +3,9 @@ pub extern crate rayon;
 /// Execute a command.
 ///
 /// Each argument after the first, denoting the executable, represents a respective argument passed
-/// to the executable.  Optionally, you can specify the working directory by prepending `in "blah";
-/// ` to the argument list.
+/// to the executable.  Optionally, you can specify the working directory by prepending `; in
+/// "blah" ` to the argument list. Any arbitrary number of environment variables can be declared
+/// through `where VAR = VAL`, delimited by `;`.
 ///
 /// Examples
 /// ========
@@ -18,16 +19,25 @@ pub extern crate rayon;
 /// If we want to run this in a custom working directory, we can do:
 ///
 /// ```rust
-/// cmd!(in "/"; "ls", ".");
+/// cmd!("ls", "."; in "/");
+/// ```
+///
+/// In case we want to set environment variables, we do:
+///
+/// ```rust
+/// cmd!("ls", "."; where BLAH = "/"; where BLUH = "!");
 /// ```
 #[macro_export]
 macro_rules! cmd {
-    (in $cd:expr; $cmd:expr $(, $arg:expr)*) => {{
+    ($cmd:expr $(, $arg:expr)*; in $cd:expr $(; where $var:ident = $val:expr)*) => {{
         use std::process;
 
         if !process::Command::new($cmd)
             $(
                 .arg($arg)
+            )*
+            $(
+                .env(stringify!($var), $val)
             )*
             .current_dir($cd)
             .stdout(process::Stdio::inherit())
@@ -36,12 +46,15 @@ macro_rules! cmd {
             return Err(());
         }
     }};
-    ($cmd:expr $(, $arg:expr)*) => {{
+    ($cmd:expr $(, $arg:expr)* $(; where $var:ident = $val:expr)*) => {{
         use std::process;
 
         if !process::Command::new($cmd)
             $(
                 .arg($arg)
+            )*
+            $(
+                .env(stringify!($var), $val)
             )*
             .stdout(process::Stdio::inherit())
             .stderr(process::Stdio::inherit())
