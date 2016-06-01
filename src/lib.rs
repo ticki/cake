@@ -32,7 +32,7 @@ macro_rules! cmd {
     ($cmd:expr $(, $arg:expr)*; in $cd:expr $(; where $var:ident = $val:expr)*) => {{
         use std::process;
 
-        if !process::Command::new($cmd)
+        if process::Command::new($cmd)
             $(
                 .arg($arg)
             )*
@@ -49,7 +49,7 @@ macro_rules! cmd {
     ($cmd:expr $(, $arg:expr)* $(; where $var:ident = $val:expr)*) => {{
         use std::process;
 
-        if !process::Command::new($cmd)
+        if process::Command::new($cmd)
             $(
                 .arg($arg)
             )*
