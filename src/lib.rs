@@ -113,15 +113,21 @@ macro_rules! build {
             ),*
         }
 
+        fn unit(name: &str) {
+            let mut stdout = io::stdout();
+            writeln!(stdout, "== Running recipe {} ==", name).unwrap();
+        }
+
         impl CakeBuild {
             $(
                 fn $name(&self) -> Result<(), Error> {
                     fn inner() -> Result<(), ()> {
+                        unit(stringify!($name));
                         $cont;
                         Ok(())
                     }
 
-                    par!(
+                    try!(par!(
                         $(
                             {
                                 let mut lock = self.$dep.lock().unwrap();
@@ -129,28 +135,28 @@ macro_rules! build {
                                     try!(self.$dep());
                                 }
 
-                                let res = inner().map_err(|_| Error::Failed(stringify!($name)));
-
                                 *lock = true;
 
-                                res
+                                Ok(())
                             }
                         ),*
-                    )
+                    ));
+
+                    inner().map_err(|_| Error::Failed(stringify!($name)))
                 }
             )*
 
             fn run_recipe(&self, cmd: &str) -> Result<(), Error> {
-                let mut stdout = io::stdout();
-                writeln!(stdout, "== Running recipe {} ==", cmd).unwrap();
-
                 match cmd {
                     $(
-                        stringify!($name) => self.$name(),
+                        stringify!($name) => {
+                            let res = self.$name();
+                            *self.$name.lock().unwrap() = true;
+                            res
+                        }
                     )*
                     _ => Err(Error::NotFound),
                 }
-
             }
         }
 
@@ -175,7 +181,7 @@ macro_rules! build {
 
             let mut stderr = stderr.lock();
             if !run {
-                writeln!(stderr, "No argument given. Aborting.");
+                writeln!(stderr, "No argument given. Aborting.").unwrap();
             }
         }
     };
