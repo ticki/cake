@@ -2,6 +2,12 @@
 name = "cake"
 version = "0.1.0"
 authors = ["ticki <Ticki@users.noreply.github.com>"]
+description = "A delicious build tool with a obvious syntax."
+repository = "https://github.com/ticki/cake"
+documentation = "https://docs.rs/cake"
+license = "MIT"
+keywords = ["build", "make", "cake", "compile", "parallel"]
+exclude = ["target", "Cargo.lock"]
 
 [dependencies]
-rayon = "0.3.1"
+rayon = "0.4"
